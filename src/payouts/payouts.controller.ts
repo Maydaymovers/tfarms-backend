@@ -38,6 +38,6 @@ export class PayoutsController {
   @Get('rail/:rail/pending')
   async getPendingByRail(@Param('rail') rail: string) {
     const payouts = await this.payoutsService.getPendingPayouts();
-    return payouts.filter(p => p.rail === rail);
+    return payouts.filter((p: any) => p.rail === rail);
   }
 }
