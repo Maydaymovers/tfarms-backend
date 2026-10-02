@@ -1,32 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Payout } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
-export interface Payout {
-  id: string;
-  vendorId: string;
-  amount: number;
-  rail: string;
-  status: string;
-  externalTransactionId?: string;
-  failureReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type { Payout };
 
 @Injectable()
 export class PayoutsService {
-  private readonly payouts = new Map<string, Payout>();
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(): Promise<Payout[]> {
-    return Array.from(this.payouts.values());
+    return this.prisma.payout.findMany();
   }
 
   async getPendingPayouts(): Promise<Payout[]> {
-    return (await this.findAll()).filter((p) => p.status === 'pending');
+    return this.prisma.payout.findMany({ where: { status: 'pending' } });
   }
 
   async findById(id: string): Promise<Payout> {
-    const payout = this.payouts.get(id);
+    const payout = await this.prisma.payout.findUnique({ where: { id } });
     if (!payout) {
       throw new NotFoundException(`Payout ${id} not found`);
     }
@@ -34,22 +25,18 @@ export class PayoutsService {
   }
 
   async findByVendor(vendorId: string): Promise<Payout[]> {
-    return (await this.findAll()).filter((p) => p.vendorId === vendorId);
+    return this.prisma.payout.findMany({ where: { vendorId } });
   }
 
   async create(vendorId: string, amount: number, rail: string): Promise<Payout> {
-    const now = new Date();
-    const payout: Payout = {
-      id: randomUUID(),
-      vendorId,
-      amount,
-      rail,
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.payouts.set(payout.id, payout);
-    return payout;
+    return this.prisma.payout.create({
+      data: {
+        vendorId,
+        amount,
+        rail,
+        status: 'pending',
+      },
+    });
   }
 
   async updateStatus(
@@ -58,11 +45,14 @@ export class PayoutsService {
     externalTransactionId?: string,
     failureReason?: string,
   ): Promise<Payout> {
-    const payout = await this.findById(id);
-    payout.status = status;
-    payout.externalTransactionId = externalTransactionId;
-    payout.failureReason = failureReason;
-    payout.updatedAt = new Date();
-    return payout;
+    await this.findById(id);
+    return this.prisma.payout.update({
+      where: { id },
+      data: {
+        status,
+        externalTransactionId,
+        failureReason,
+      },
+    });
   }
 }
