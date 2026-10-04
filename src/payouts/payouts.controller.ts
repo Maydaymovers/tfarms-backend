@@ -1,6 +1,10 @@
-import { Controller, Get, Post, Body, Param, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, UseGuards } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
-import { AchRoutingService, RoutingInput } from './routing/ach-routing.service';
+import { AchRoutingService } from './routing/ach-routing.service';
+import { ApiKeyGuard } from '../auth/api-key.guard';
+import { CreatePayoutDto } from './dto/create-payout.dto';
+import { UpdatePayoutStatusDto } from './dto/update-payout-status.dto';
+import { RoutingInputDto } from './dto/routing-input.dto';
 
 @Controller('payouts')
 export class PayoutsController {
@@ -20,7 +24,8 @@ export class PayoutsController {
   }
 
   @Post('route')
-  route(@Body() body: RoutingInput) {
+  @UseGuards(ApiKeyGuard)
+  route(@Body() body: RoutingInputDto) {
     return this.achRoutingService.decide(body);
   }
 
@@ -35,12 +40,14 @@ export class PayoutsController {
   }
 
   @Post()
-  async create(@Body() body: { vendorId: string; amount: string; rail: string }) {
+  @UseGuards(ApiKeyGuard)
+  async create(@Body() body: CreatePayoutDto) {
     return this.payoutsService.create(body.vendorId, body.amount, body.rail);
   }
 
   @Put(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() body: { status: string; externalTransactionId?: string; failureReason?: string }) {
+  @UseGuards(ApiKeyGuard)
+  async updateStatus(@Param('id') id: string, @Body() body: UpdatePayoutStatusDto) {
     return this.payoutsService.updateStatus(id, body.status, body.externalTransactionId, body.failureReason);
   }
 
