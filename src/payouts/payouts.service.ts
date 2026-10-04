@@ -1,8 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Payout } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Payout, PayoutStatus, Prisma, Rail } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type { Payout };
+
+function parseEnumValue<T extends string>(
+  value: string,
+  values: Record<string, T>,
+  label: string,
+): T {
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`Invalid ${label}: ${value}`);
+  }
+  const normalized = value.trim().toUpperCase();
+  const result = Object.values(values).find((candidate) => candidate === normalized);
+  if (!result) {
+    throw new BadRequestException(`Invalid ${label}: ${value}`);
+  }
+  return result;
+}
 
 @Injectable()
 export class PayoutsService {
@@ -13,7 +29,7 @@ export class PayoutsService {
   }
 
   async getPendingPayouts(): Promise<Payout[]> {
-    return this.prisma.payout.findMany({ where: { status: 'pending' } });
+    return this.prisma.payout.findMany({ where: { status: PayoutStatus.PENDING } });
   }
 
   async findById(id: string): Promise<Payout> {
@@ -28,13 +44,26 @@ export class PayoutsService {
     return this.prisma.payout.findMany({ where: { vendorId } });
   }
 
-  async create(vendorId: string, amount: number, rail: string): Promise<Payout> {
+  async create(vendorId: string, amount: string, rail: string): Promise<Payout> {
+    if (typeof amount !== 'string') {
+      throw new BadRequestException('Amount must be provided as a decimal string');
+    }
+    let decimalAmount: Prisma.Decimal;
+    try {
+      decimalAmount = new Prisma.Decimal(amount);
+    } catch {
+      throw new BadRequestException('Amount must be a valid decimal string');
+    }
+    if (!decimalAmount.isFinite() || decimalAmount.decimalPlaces() > 2) {
+      throw new BadRequestException('Amount must be a finite value with at most two decimal places');
+    }
+
     return this.prisma.payout.create({
       data: {
         vendorId,
-        amount,
-        rail,
-        status: 'pending',
+        amount: decimalAmount,
+        rail: parseEnumValue(rail, Rail, 'rail'),
+        status: PayoutStatus.PENDING,
       },
     });
   }
@@ -49,7 +78,7 @@ export class PayoutsService {
     return this.prisma.payout.update({
       where: { id },
       data: {
-        status,
+        status: parseEnumValue(status, PayoutStatus, 'payout status'),
         externalTransactionId,
         failureReason,
       },
