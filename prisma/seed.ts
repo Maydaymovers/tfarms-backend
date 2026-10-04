@@ -14,9 +14,9 @@ async function main(): Promise<void> {
   await prisma.payout.create({
     data: {
       vendorId,
-      amount: 100.0,
-      rail: 'ach',
-      status: 'pending',
+      amount: '100.00',
+      rail: 'ACH',
+      status: 'PENDING',
     },
   });
 

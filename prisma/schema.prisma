@@ -7,18 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Rail {
+  ACH    @map("ach")
+  PAYPAL @map("paypal")
+  RTP    @map("rtp")
+  WALLET @map("wallet")
+  MANUAL @map("manual")
+  OTHER  @map("other")
+}
+
+enum PayoutStatus {
+  PENDING         @map("pending")
+  PROCESSING      @map("processing")
+  COMPLETED       @map("completed")
+  FAILED          @map("failed")
+  REVERSED        @map("reversed")
+  REQUIRES_REVIEW @map("requires_review")
+}
+
+enum LedgerEntryType {
+  PAYOUT_DEBIT      @map("payout_debit")
+  PAYOUT_FEE        @map("payout_fee")
+  PAYOUT_REVERSAL   @map("payout_reversal")
+  ADJUSTMENT_CREDIT @map("adjustment_credit")
+  ADJUSTMENT_DEBIT  @map("adjustment_debit")
+}
+
 model Payout {
-  id                   String   @id @default(uuid())
-  vendorId             String
-  amount               Float
-  rail                 String
-  status               String   @default("pending")
+  id                    String        @id @default(uuid())
+  vendorId              String
+  amount                Decimal       @db.Decimal(18, 2)
+  currency              String        @default("USD") @db.Char(3)
+  rail                  Rail
+  status                PayoutStatus  @default(PENDING)
   externalTransactionId String?
   failureReason        String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  ledgerEntries         LedgerEntry[]
 
   @@index([vendorId])
   @@index([status])
   @@index([rail])
+}
+
+model LedgerEntry {
+  id        String          @id @default(uuid())
+  type      LedgerEntryType
+  amount    Decimal         @db.Decimal(18, 2)
+  currency  String          @default("USD") @db.Char(3)
+  vendorId  String?
+  payoutId  String?
+  createdAt DateTime        @default(now())
+  payout    Payout?         @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId])
+  @@index([type])
+  @@index([payoutId])
 }

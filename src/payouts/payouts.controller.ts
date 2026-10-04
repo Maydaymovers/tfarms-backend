@@ -26,7 +26,7 @@ export class PayoutsController {
   }
 
   @Post()
-  async create(@Body() body: { vendorId: string; amount: number; rail: string }) {
+  async create(@Body() body: { vendorId: string; amount: string; rail: string }) {
     return this.payoutsService.create(body.vendorId, body.amount, body.rail);
   }
 
@@ -38,6 +38,6 @@ export class PayoutsController {
   @Get('rail/:rail/pending')
   async getPendingByRail(@Param('rail') rail: string) {
     const payouts = await this.payoutsService.getPendingPayouts();
-    return payouts.filter(p => p.rail === rail);
+    return payouts.filter((payout) => payout.rail === rail.trim().toUpperCase());
   }
 }
