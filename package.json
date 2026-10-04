@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "test": "jest"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -27,9 +28,18 @@
     "rxjs": "^7.8.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "jest": "^30.5.2",
     "prisma": "6.19.3",
+    "ts-jest": "^29.4.14",
     "ts-node": "10.9.2",
     "typescript": "^5.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$"
   }
 }
