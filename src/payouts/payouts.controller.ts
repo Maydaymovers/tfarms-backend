@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Body, Param, Put } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
+import { AchRoutingService, RoutingInput } from './routing/ach-routing.service';
 
 @Controller('payouts')
 export class PayoutsController {
-  constructor(private readonly payoutsService: PayoutsService) {}
+  constructor(
+    private readonly payoutsService: PayoutsService,
+    private readonly achRoutingService: AchRoutingService,
+  ) {}
 
   @Get()
   async findAll() {
@@ -13,6 +17,11 @@ export class PayoutsController {
   @Get('pending')
   async getPending() {
     return this.payoutsService.getPendingPayouts();
+  }
+
+  @Post('route')
+  route(@Body() body: RoutingInput) {
+    return this.achRoutingService.decide(body);
   }
 
   @Get(':id')
