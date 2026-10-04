@@ -7,6 +7,7 @@ import { UpdatePayoutStatusDto } from './dto/update-payout-status.dto';
 import { RoutingInputDto } from './dto/routing-input.dto';
 
 @Controller('payouts')
+@UseGuards(ApiKeyGuard)
 export class PayoutsController {
   constructor(
     private readonly payoutsService: PayoutsService,
@@ -24,7 +25,6 @@ export class PayoutsController {
   }
 
   @Post('route')
-  @UseGuards(ApiKeyGuard)
   route(@Body() body: RoutingInputDto) {
     return this.achRoutingService.decide(body);
   }
@@ -40,13 +40,11 @@ export class PayoutsController {
   }
 
   @Post()
-  @UseGuards(ApiKeyGuard)
   async create(@Body() body: CreatePayoutDto) {
     return this.payoutsService.create(body.vendorId, body.amount, body.rail);
   }
 
   @Put(':id/status')
-  @UseGuards(ApiKeyGuard)
   async updateStatus(@Param('id') id: string, @Body() body: UpdatePayoutStatusDto) {
     return this.payoutsService.updateStatus(id, body.status, body.externalTransactionId, body.failureReason);
   }
