@@ -9,5 +9,6 @@ import { PayoutsService } from './payouts.service';
   imports: [PrismaModule, AuthModule],
   controllers: [PayoutsController],
   providers: [PayoutsService, AchRoutingService],
+  exports: [PayoutsService],
 })
 export class PayoutsModule {}

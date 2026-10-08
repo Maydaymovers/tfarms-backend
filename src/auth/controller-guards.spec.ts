@@ -2,6 +2,7 @@ import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { PayoutsController } from '../payouts/payouts.controller';
 import { LedgerController } from '../ledger/ledger.controller';
+import { VendorsController } from '../vendors/vendors.controller';
 import { getValidApiKeys } from './api-key.strategy';
 
 type Ctor = { prototype: object };
@@ -23,6 +24,7 @@ function routeMethods(controller: Ctor): string[] {
 describe.each([
   ['PayoutsController', PayoutsController, 8],
   ['LedgerController', LedgerController, 1],
+  ['VendorsController', VendorsController, 4],
 ])('%s', (_name, controller, expected) => {
   it('has the expected number of routes', () => {
     expect(routeMethods(controller)).toHaveLength(expected);
