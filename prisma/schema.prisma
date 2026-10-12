@@ -39,6 +39,20 @@ model Vendor {
   contactEmail String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  onboarding   VendorOnboarding?
+}
+
+enum VendorOnboardingStatus {
+  STARTED
+}
+
+model VendorOnboarding {
+  id        String                 @id @default(uuid())
+  vendorId  String                 @unique
+  status    VendorOnboardingStatus @default(STARTED)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  vendor    Vendor                 @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 model Payout {

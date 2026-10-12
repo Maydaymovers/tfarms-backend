@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { HealthModule } from './health/health.module';
 import { VendorsModule } from './vendors/vendors.module';
+import { VendorOnboardingModule } from './vendor-onboarding/vendor-onboarding.module';
 
 export function getCorsOptions() {
   return {
@@ -13,6 +14,6 @@ export function getCorsOptions() {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule],
+  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule],
 })
 export class AppModule {}
