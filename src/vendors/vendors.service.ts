@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { HotelScope } from '../auth/hotel-context';
 
 export interface VendorSummary {
   id: string;
@@ -16,10 +17,10 @@ export class VendorsService {
   /**
    * Lists onboarded vendors plus any vendorId that only appears on payouts.
    */
-  async findAll(): Promise<VendorSummary[]> {
+  async findAll(scope: HotelScope = {}): Promise<VendorSummary[]> {
     const [vendors, payoutVendors] = await Promise.all([
-      this.prisma.vendor.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.payout.findMany({ distinct: ['vendorId'], select: { vendorId: true } }),
+      this.prisma.vendor.findMany({ where: { ...scope }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.payout.findMany({ where: { ...scope }, distinct: ['vendorId'], select: { vendorId: true } }),
     ]);
 
     const result: VendorSummary[] = vendors.map((vendor) => ({
@@ -38,16 +39,16 @@ export class VendorsService {
     return result;
   }
 
-  async onboard(name: string, contactEmail?: string) {
-    return this.prisma.vendor.create({ data: { name, contactEmail } });
+  async onboard(name: string, contactEmail?: string, hotelId?: string) {
+    return this.prisma.vendor.create({ data: { name, contactEmail, hotelId } });
   }
 
-  async getHealth(vendorId: string) {
+  async getHealth(vendorId: string, scope: HotelScope = {}) {
     const [vendor, grouped, latest] = await Promise.all([
-      this.prisma.vendor.findUnique({ where: { id: vendorId } }),
-      this.prisma.payout.groupBy({ by: ['status'], where: { vendorId }, _count: { _all: true } }),
+      this.prisma.vendor.findFirst({ where: { id: vendorId, ...scope } }),
+      this.prisma.payout.groupBy({ by: ['status'], where: { vendorId, ...scope }, _count: { _all: true } }),
       this.prisma.payout.findFirst({
-        where: { vendorId },
+        where: { vendorId, ...scope },
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true },
       }),

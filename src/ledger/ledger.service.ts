@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LedgerEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerQueryDto } from './ledger-query.dto';
+import { HotelScope } from '../auth/hotel-context';
 
 export interface LedgerPage {
   data: LedgerEntry[];
@@ -14,8 +15,8 @@ export interface LedgerPage {
 export class LedgerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: LedgerQueryDto): Promise<LedgerPage> {
-    const where: Prisma.LedgerEntryWhereInput = {};
+  async findAll(query: LedgerQueryDto, scope: HotelScope = {}): Promise<LedgerPage> {
+    const where: Prisma.LedgerEntryWhereInput = { ...scope };
     if (query.vendorId) where.vendorId = query.vendorId;
     if (query.payoutId) where.payoutId = query.payoutId;
     if (query.type) where.type = query.type;
