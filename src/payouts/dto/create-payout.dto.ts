@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsString, Matches } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 import { Rail } from '@prisma/client';
 
 const upper = ({ value }: { value: unknown }) =>
@@ -19,4 +19,9 @@ export class CreatePayoutDto {
   @Transform(upper)
   @IsEnum(Rail)
   rail!: Rail;
+
+  /** Service requests only; ignored for hotel members. */
+  @IsOptional()
+  @IsString()
+  hotelId?: string;
 }

@@ -6,10 +6,10 @@ import { StartOnboardingDto } from './dto/start-onboarding.dto';
 export class VendorOnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async start(dto: StartOnboardingDto) {
+  async start(dto: StartOnboardingDto, hotelId?: string) {
     const { vendor, onboarding } = await this.prisma.$transaction(async (tx) => {
       const vendor = await tx.vendor.create({
-        data: { name: dto.name, contactEmail: dto.contactEmail },
+        data: { name: dto.name, contactEmail: dto.contactEmail, ...(hotelId ? { hotelId } : {}) },
       });
       const onboarding = await tx.vendorOnboarding.create({
         data: { vendorId: vendor.id },
