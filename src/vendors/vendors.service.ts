@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HotelScope } from '../auth/hotel-context';
 
@@ -37,6 +37,33 @@ export class VendorsService {
       }
     }
     return result;
+  }
+
+  /** Number of vendors in the caller's hotel (all vendors for service requests). */
+  async count(scope: HotelScope = {}): Promise<{ count: number }> {
+    return { count: await this.prisma.vendor.count({ where: { ...scope } }) };
+  }
+
+  /**
+   * Assigns an existing vendor, and its still-unassigned payouts and ledger
+   * entries, to a hotel. Service requests only.
+   */
+  async assignToHotel(vendorId: string, hotelId: string) {
+    const [vendor, hotel] = await Promise.all([
+      this.prisma.vendor.findUnique({ where: { id: vendorId } }),
+      this.prisma.hotel.findUnique({ where: { id: hotelId } }),
+    ]);
+    if (!vendor) throw new NotFoundException(`Vendor ${vendorId} not found`);
+    if (!hotel) throw new NotFoundException(`Hotel ${hotelId} not found`);
+    if (vendor.hotelId && vendor.hotelId !== hotelId) {
+      throw new ConflictException('Vendor already belongs to another hotel');
+    }
+    const [updated, payouts, ledger] = await this.prisma.$transaction([
+      this.prisma.vendor.update({ where: { id: vendorId }, data: { hotelId } }),
+      this.prisma.payout.updateMany({ where: { vendorId, hotelId: null }, data: { hotelId } }),
+      this.prisma.ledgerEntry.updateMany({ where: { vendorId, hotelId: null }, data: { hotelId } }),
+    ]);
+    return { vendor: updated, payoutsAssigned: payouts.count, ledgerEntriesAssigned: ledger.count };
   }
 
   async onboard(name: string, contactEmail?: string, hotelId?: string) {

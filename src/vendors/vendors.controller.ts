@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { HotelRole } from '@prisma/client';
 import { ApiKeyGuard } from '../auth/api-key.guard';
-import { CurrentHotel, HotelAccessGuard, Roles } from '../auth/hotel-access.guard';
+import { CurrentHotel, HotelAccessGuard, Roles, ServiceOnly } from '../auth/hotel-access.guard';
 import { HotelContext, scopeOf } from '../auth/hotel-context';
 import { PayoutsService } from '../payouts/payouts.service';
+import { AssignHotelDto } from './dto/assign-hotel.dto';
 import { OnboardVendorDto } from './dto/onboard-vendor.dto';
 import { VendorsService } from './vendors.service';
 
@@ -18,6 +19,17 @@ export class VendorsController {
   @Get()
   async findAll(@CurrentHotel() hotel: HotelContext | null) {
     return this.vendorsService.findAll(scopeOf(hotel));
+  }
+
+  @Get('count')
+  async count(@CurrentHotel() hotel: HotelContext | null) {
+    return this.vendorsService.count(scopeOf(hotel));
+  }
+
+  @Put(':id/hotel')
+  @ServiceOnly()
+  async assignHotel(@Param('id') id: string, @Body() body: AssignHotelDto) {
+    return this.vendorsService.assignToHotel(id, body.hotelId);
   }
 
   @Post('onboard')
