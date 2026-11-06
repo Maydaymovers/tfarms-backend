@@ -113,6 +113,21 @@ maybe('hotel isolation (database)', () => {
     expect((await call('GET', '/hotels/me', staffA)).body).toEqual({ hotel: { id: hotelA, name: 'A' }, role: 'STAFF' });
   });
 
+  it('counts vendors per hotel and assigns existing vendors', async () => {
+    const before = (await call('GET', '/vendors/count', ownerA)).body.count;
+    const orphan = await prisma.vendor.create({ data: { name: `orphan-${run}` } });
+    expect((await call('GET', '/vendors/count', ownerA)).body.count).toBe(before);
+
+    expect((await call('PUT', `/vendors/${orphan.id}/hotel`, ownerA, { hotelId: hotelA })).status).toBe(403);
+    const assigned = await call('PUT', `/vendors/${orphan.id}/hotel`, undefined, { hotelId: hotelA });
+    expect(assigned.status).toBe(200);
+    expect((await call('GET', '/vendors/count', ownerA)).body.count).toBe(before + 1);
+    expect((await call('PUT', `/vendors/${orphan.id}/hotel`, undefined, { hotelId: hotelB })).status).toBe(409);
+    expect((await call('PUT', `/vendors/${orphan.id}/hotel`, undefined, { hotelId: 'nope' })).status).toBe(404);
+    // hotel B only ever onboarded one vendor (VB, earlier test)
+    expect((await call('GET', '/vendors/count', ownerB)).body.count).toBe(1);
+  });
+
   it('service requests (no member header) behave as before', async () => {
     expect((await call('GET', '/payouts')).status).toBe(200);
   });
