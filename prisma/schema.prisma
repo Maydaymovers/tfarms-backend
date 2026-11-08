@@ -62,17 +62,56 @@ model HotelMember {
   @@index([hotelId])
 }
 
+enum VendorStatus {
+  PENDING
+  SETUP_REQUIRED
+  BANK_CONNECTED
+  VERIFICATION_PENDING
+  ACTIVE
+  SUSPENDED
+}
+
 model Vendor {
   id           String   @id @default(uuid())
   hotelId      String?
   hotel        Hotel?   @relation(fields: [hotelId], references: [id])
   name         String
   contactEmail String?
+  status       VendorStatus @default(PENDING)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   onboarding   VendorOnboarding?
+  statusEvents VendorStatusEvent[]
 
   @@index([hotelId])
+  @@index([status])
+}
+
+model VendorStatusEvent {
+  id        String         @id @default(uuid())
+  vendorId  String
+  hotelId   String?
+  oldStatus VendorStatus
+  newStatus VendorStatus
+  // 'platform_admin' for API-key-only calls, otherwise 'member:<HotelMember.id>'
+  changedBy String
+  reason    String?
+  createdAt DateTime       @default(now())
+  vendor    Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId, createdAt])
+}
+
+model IdempotencyKey {
+  id          String   @id @default(uuid())
+  // hotelId for member requests, 'service' otherwise
+  scope       String
+  key         String
+  requestHash String
+  response    Json
+  createdAt   DateTime @default(now())
+
+  @@unique([scope, key])
 }
 
 enum VendorOnboardingStatus {

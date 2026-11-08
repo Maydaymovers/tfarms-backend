@@ -24,7 +24,7 @@ function routeMethods(controller: Ctor): string[] {
 describe.each([
   ['PayoutsController', PayoutsController, 8],
   ['LedgerController', LedgerController, 1],
-  ['VendorsController', VendorsController, 6],
+  ['VendorsController', VendorsController, 9],
 ])('%s', (_name, controller, expected) => {
   it('has the expected number of routes', () => {
     expect(routeMethods(controller)).toHaveLength(expected);
