@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { AuthModule } from './auth/auth.module';
+import { SignupModule } from './signup/signup.module';
 import { HotelsModule } from './hotels/hotels.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { HealthModule } from './health/health.module';
@@ -15,6 +16,6 @@ export function getCorsOptions() {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule],
+  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule, SignupModule],
 })
 export class AppModule {}
