@@ -40,7 +40,7 @@ button:disabled{background:#9db89e;cursor:not-allowed}
 <label for="name">Business name</label><input id="name" name="name" type="text" maxlength="200" autocomplete="organization" required>
 <label for="email">Email</label><input id="email" name="email" type="email" maxlength="320" autocomplete="email" required>
 <div class="hp" aria-hidden="true"><label for="website">Website</label><input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
-<div class="cf-turnstile" data-sitekey="${esc(siteKey)}"></div>
+<div class="cf-turnstile" data-sitekey="${esc(siteKey)}" data-action="vendor_signup"></div>
 <button id="btn" type="submit">Submit</button>
 </form>
 <div id="msg" role="status" aria-live="polite"></div>

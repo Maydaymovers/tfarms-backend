@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { BadRequestException } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { PublicSignupDto } from './dto/public-signup.dto';
@@ -23,7 +24,7 @@ function setup() {
 describe('SignupService', () => {
   const realFetch = global.fetch;
   const turnstile = (success: boolean) =>
-    (global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success }) }) as never);
+    (global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success, action: 'vendor_signup', hostname: 'api.tfarmsdigitalbank.com' }) }) as never);
 
   beforeEach(() => {
     process.env.SIGNUP_HOTEL_ID = 'hotel-1';
@@ -42,6 +43,18 @@ describe('SignupService', () => {
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     expect(String(init.body)).toContain('secret=secret');
     expect(String(init.body)).toContain('response=tok');
+  });
+
+  it.each([
+    ['wrong action', { success: true, action: 'login', hostname: 'api.tfarmsdigitalbank.com' }],
+    ['missing action', { success: true, hostname: 'api.tfarmsdigitalbank.com' }],
+    ['unapproved hostname', { success: true, action: 'vendor_signup', hostname: 'evil.example' }],
+    ['localhost', { success: true, action: 'vendor_signup', hostname: 'localhost' }],
+  ])('rejects a verified token with %s', async (_label, payload) => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => payload }) as never;
+    const { service, vendors } = setup();
+    await expect(service.signup(dto(), '1.1.1.1', 'idem-x')).rejects.toBeInstanceOf(BadRequestException);
+    expect(vendors.onboard).not.toHaveBeenCalled();
   });
 
   it('without SIGNUP_HOTEL_ID creates an unassigned vendor and skips the hotel lookup', async () => {
