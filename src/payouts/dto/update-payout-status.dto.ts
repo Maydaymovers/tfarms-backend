@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PayoutStatus } from '@prisma/client';
 
 export class UpdatePayoutStatusDto {
@@ -14,4 +14,10 @@ export class UpdatePayoutStatusDto {
   @IsOptional()
   @IsString()
   failureReason?: string;
+
+  /** Recorded in the status history. Required when reversing a COMPLETED payout. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

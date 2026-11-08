@@ -21,6 +21,7 @@ maybe('hotel isolation (database)', () => {
       headers: {
         'content-type': 'application/json',
         'x-api-key': KEY,
+        ...(method === 'POST' && path === '/payouts' ? { 'idempotency-key': `iso-${Math.random()}` } : {}),
         ...(member ? { 'x-wix-member-id': member } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -56,7 +57,7 @@ maybe('hotel isolation (database)', () => {
   afterAll(async () => {
     await prisma.payout.deleteMany({ where: { hotelId: { in: [hotelA, hotelB] } } });
     await prisma.vendor.deleteMany({ where: { hotelId: { in: [hotelA, hotelB] } } });
-    await prisma.idempotencyKey.deleteMany({ where: { scope: { in: [hotelA, hotelB] } } });
+    await prisma.idempotencyKey.deleteMany({ where: { scope: { in: [hotelA, hotelB, `payout:${hotelA}`, `payout:${hotelB}`] } } });
     await prisma.hotel.deleteMany({ where: { id: { in: [hotelA, hotelB] } } });
     await app.close();
   });
