@@ -22,6 +22,12 @@ export class VendorsController {
     return this.vendorsService.findAll(scopeOf(hotel));
   }
 
+  @Get('unassigned')
+  @ServiceOnly()
+  async findUnassigned() {
+    return this.vendorsService.findUnassigned();
+  }
+
   @Get('count')
   async count(@CurrentHotel() hotel: HotelContext | null) {
     return this.vendorsService.count(scopeOf(hotel));

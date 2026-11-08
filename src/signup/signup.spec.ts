@@ -44,8 +44,20 @@ describe('SignupService', () => {
     expect(String(init.body)).toContain('response=tok');
   });
 
-  it('fails closed with 503 when any setting is missing, without calling Turnstile', async () => {
-    for (const name of ['SIGNUP_HOTEL_ID', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']) {
+  it('without SIGNUP_HOTEL_ID creates an unassigned vendor and skips the hotel lookup', async () => {
+    delete process.env.SIGNUP_HOTEL_ID;
+    turnstile(true);
+    const { service, vendors, prisma } = setup();
+    await expect(service.signup(dto(), '1.1.1.1', 'idem-2')).resolves.toEqual({ ok: true });
+    expect(vendors.onboard).toHaveBeenCalledWith('ABC Farms', 'o@abc.test', undefined, 'idem-2');
+    expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
+    expect(prisma.vendor.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ hotelId: null }) }),
+    );
+  });
+
+  it('fails closed with 503 when a Turnstile key is missing, without calling Turnstile', async () => {
+    for (const name of ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']) {
       const saved = process.env[name];
       delete process.env[name];
       turnstile(true);
