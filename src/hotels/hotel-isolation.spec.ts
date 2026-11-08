@@ -190,6 +190,21 @@ maybe('hotel isolation (database)', () => {
     expect(other.status).toBe(201);
   });
 
+  it('lists unassigned vendors for platform admin and moves them on assignment', async () => {
+    const orphan = await prisma.vendor.create({ data: { name: `queue-${run}` } });
+    const queue = (await call('GET', '/vendors/unassigned')).body as { vendorId: string; status: string; hotelId: null }[];
+    const item = queue.find((v) => v.vendorId === orphan.id);
+    expect(item).toMatchObject({ status: 'PENDING', hotelId: null });
+    // hotel members never see the queue
+    expect((await call('GET', '/vendors/unassigned', ownerA)).status).toBe(403);
+    expect((await call('GET', '/vendors', ownerA)).body.map((v: { id: string }) => v.id)).not.toContain(orphan.id);
+
+    await call('PUT', `/vendors/${orphan.id}/hotel`, undefined, { hotelId: hotelA });
+    const after = (await call('GET', '/vendors/unassigned')).body as { vendorId: string }[];
+    expect(after.map((v) => v.vendorId)).not.toContain(orphan.id);
+    expect((await call('GET', '/vendors', ownerA)).body.map((v: { id: string }) => v.id)).toContain(orphan.id);
+  });
+
   it('service requests (no member header) behave as before', async () => {
     expect((await call('GET', '/payouts')).status).toBe(200);
   });

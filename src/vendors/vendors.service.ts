@@ -44,6 +44,22 @@ export class VendorsService {
     return result;
   }
 
+  /** Vendors with no hotel yet, oldest first: the platform review queue. Service requests only. */
+  async findUnassigned() {
+    const vendors = await this.prisma.vendor.findMany({
+      where: { hotelId: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    return vendors.map((v) => ({
+      vendorId: v.id,
+      businessName: v.name,
+      email: v.contactEmail,
+      status: v.status,
+      hotelId: null,
+      createdAt: v.createdAt,
+    }));
+  }
+
   /** Number of vendors in the caller's hotel (all vendors for service requests). */
   async count(scope: HotelScope = {}): Promise<{ count: number }> {
     return { count: await this.prisma.vendor.count({ where: { ...scope } }) };
