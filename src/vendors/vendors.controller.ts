@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { HotelRole } from '@prisma/client';
 import { ApiKeyGuard } from '../auth/api-key.guard';
 import { CurrentHotel, HotelAccessGuard, Roles, ServiceOnly } from '../auth/hotel-access.guard';
 import { HotelContext, scopeOf } from '../auth/hotel-context';
 import { PayoutsService } from '../payouts/payouts.service';
+import { UpdateVendorStatusDto } from './dto/update-vendor-status.dto';
 import { AssignHotelDto } from './dto/assign-hotel.dto';
 import { OnboardVendorDto } from './dto/onboard-vendor.dto';
 import { VendorsService } from './vendors.service';
@@ -34,8 +35,48 @@ export class VendorsController {
 
   @Post('onboard')
   @Roles(HotelRole.OWNER, HotelRole.MANAGER)
-  async onboard(@Body() body: OnboardVendorDto, @CurrentHotel() hotel: HotelContext | null) {
-    return this.vendorsService.onboard(body.name, body.contactEmail, hotel ? hotel.hotelId : body.hotelId);
+  async onboard(
+    @Body() body: OnboardVendorDto,
+    @CurrentHotel() hotel: HotelContext | null,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.vendorsService.onboard(
+      body.name,
+      body.contactEmail,
+      hotel ? hotel.hotelId : body.hotelId,
+      idempotencyKey?.trim() || undefined,
+    );
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string, @CurrentHotel() hotel: HotelContext | null) {
+    return this.vendorsService.findOne(id, scopeOf(hotel));
+  }
+
+  @Get(':id/status-history')
+  async statusHistory(@Param('id') id: string, @CurrentHotel() hotel: HotelContext | null) {
+    return this.vendorsService.statusHistory(id, scopeOf(hotel));
+  }
+
+  /**
+   * Allowed: hotel OWNER and MANAGER (their own hotel only) and platform admin
+   * (API key with no member header). Every change is written to the audit log.
+   */
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateVendorStatusDto,
+    @CurrentHotel() hotel: HotelContext | null,
+  ) {
+    if (hotel && hotel.role !== HotelRole.OWNER && hotel.role !== HotelRole.MANAGER) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'STATUS_CHANGE_NOT_AUTHORIZED',
+        message: 'Your role cannot change vendor status',
+      });
+    }
+    const changedBy = hotel ? `member:${hotel.memberId}` : 'platform_admin';
+    return this.vendorsService.changeStatus(id, body.status, changedBy, body.reason, scopeOf(hotel));
   }
 
   @Get(':id/health')

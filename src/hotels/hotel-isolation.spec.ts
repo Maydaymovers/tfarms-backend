@@ -56,6 +56,7 @@ maybe('hotel isolation (database)', () => {
   afterAll(async () => {
     await prisma.payout.deleteMany({ where: { hotelId: { in: [hotelA, hotelB] } } });
     await prisma.vendor.deleteMany({ where: { hotelId: { in: [hotelA, hotelB] } } });
+    await prisma.idempotencyKey.deleteMany({ where: { scope: { in: [hotelA, hotelB] } } });
     await prisma.hotel.deleteMany({ where: { id: { in: [hotelA, hotelB] } } });
     await app.close();
   });
@@ -126,6 +127,67 @@ maybe('hotel isolation (database)', () => {
     expect((await call('PUT', `/vendors/${orphan.id}/hotel`, undefined, { hotelId: 'nope' })).status).toBe(404);
     // hotel B only ever onboarded one vendor (VB, earlier test)
     expect((await call('GET', '/vendors/count', ownerB)).body.count).toBe(1);
+  });
+
+  it('vendor status: PENDING on signup, validated transitions, roles, audit, isolation', async () => {
+    const v = (await call('POST', '/vendors/onboard', ownerA, { name: `S-${run}` })).body;
+    expect(v.status).toBe('PENDING');
+    // a forged status in the body is stripped, signup can never create ACTIVE
+    const forged = (await call('POST', '/vendors/onboard', ownerA, { name: `F-${run}`, status: 'ACTIVE' })).body;
+    expect(forged.status).toBe('PENDING');
+
+    const patch = (id: string, member: string | undefined, status: string, reason?: string) =>
+      call('PATCH', `/vendors/${id}/status`, member, { status, reason });
+
+    // staff and other hotels cannot change it
+    const staff = await patch(v.id, staffA, 'SETUP_REQUIRED');
+    expect(staff.status).toBe(403);
+    expect(staff.body.code).toBe('STATUS_CHANGE_NOT_AUTHORIZED');
+    expect((await patch(v.id, ownerB, 'SETUP_REQUIRED')).status).toBe(404);
+
+    // invalid transitions are rejected
+    const skip = await patch(v.id, ownerA, 'ACTIVE');
+    expect(skip.status).toBe(409);
+    expect(skip.body.code).toBe('INVALID_STATUS_TRANSITION');
+    expect((await patch(v.id, ownerA, 'NOPE')).status).toBe(400);
+
+    // owner walks the happy path, platform admin (no member header) finishes it
+    expect((await patch(v.id, ownerA, 'SETUP_REQUIRED', 'approved')).status).toBe(200);
+    expect((await patch(v.id, ownerA, 'BANK_CONNECTED')).status).toBe(200);
+    expect((await patch(v.id, undefined, 'VERIFICATION_PENDING')).status).toBe(200);
+    expect((await patch(v.id, undefined, 'ACTIVE', 'verified by support')).status).toBe(200);
+    expect((await call('GET', `/vendors/${v.id}`, ownerA)).body.status).toBe('ACTIVE');
+    expect((await call('GET', `/vendors/${v.id}`, ownerB)).status).toBe(404);
+
+    const history = (await call('GET', `/vendors/${v.id}/status-history`, ownerA)).body;
+    expect(history.map((e: { newStatus: string }) => e.newStatus)).toEqual([
+      'SETUP_REQUIRED', 'BANK_CONNECTED', 'VERIFICATION_PENDING', 'ACTIVE',
+    ]);
+    expect(history[0]).toMatchObject({ oldStatus: 'PENDING', changedBy: expect.stringMatching(/^member:/), reason: 'approved' });
+    expect(history[3].changedBy).toBe('platform_admin');
+    expect((await call('GET', `/vendors/${v.id}/status-history`, ownerB)).status).toBe(404);
+  });
+
+  it('Idempotency-Key makes onboarding safe to repeat', async () => {
+    const send = (name: string, key: string) =>
+      fetch(base + '/vendors/onboard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': KEY, 'x-wix-member-id': ownerA, 'idempotency-key': key },
+        body: JSON.stringify({ name }),
+      }).then(async (r) => ({ status: r.status, body: await r.json() }));
+    const key = `k-${run}`;
+    const [a, b] = await Promise.all([send(`I-${run}`, key), send(`I-${run}`, key)]);
+    expect(a.body.id).toBe(b.body.id);
+    expect((await send(`I-${run}`, key)).body.id).toBe(a.body.id);
+    expect(await prisma.vendor.count({ where: { name: `I-${run}` } })).toBe(1);
+    expect((await send(`other-${run}`, key)).status).toBe(422);
+    // the same key in another hotel is independent
+    const other = await fetch(base + '/vendors/onboard', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': KEY, 'x-wix-member-id': ownerB, 'idempotency-key': key },
+      body: JSON.stringify({ name: `I-${run}` }),
+    });
+    expect(other.status).toBe(201);
   });
 
   it('service requests (no member header) behave as before', async () => {
