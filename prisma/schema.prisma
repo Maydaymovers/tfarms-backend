@@ -141,11 +141,27 @@ model Payout {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   ledgerEntries         LedgerEntry[]
+  statusEvents          PayoutStatusEvent[]
 
   @@index([hotelId])
   @@index([vendorId])
   @@index([status])
   @@index([rail])
+}
+
+model PayoutStatusEvent {
+  id        String       @id @default(uuid())
+  payoutId  String
+  hotelId   String?
+  oldStatus PayoutStatus
+  newStatus PayoutStatus
+  // 'platform_admin' for API-key-only calls, otherwise 'member:<HotelMember.id>'
+  changedBy String
+  reason    String?
+  createdAt DateTime     @default(now())
+  payout    Payout       @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+
+  @@index([payoutId, createdAt])
 }
 
 model LedgerEntry {
