@@ -66,6 +66,14 @@ export class PayoutsController {
     );
   }
 
+  /** Sends a PENDING PayPal-rail payout through PayPal. Completion arrives by webhook. */
+  @Post(':id/send')
+  @Roles(HotelRole.OWNER, HotelRole.MANAGER)
+  async send(@Param('id') id: string, @CurrentHotel() hotel: HotelContext | null) {
+    const changedBy = hotel ? `member:${hotel.memberId}` : 'platform_admin';
+    return this.payoutsService.sendViaPaypal(id, changedBy, scopeOf(hotel));
+  }
+
   @Put(':id/status')
   @Roles(HotelRole.OWNER, HotelRole.MANAGER)
   async updateStatus(

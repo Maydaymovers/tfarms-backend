@@ -8,6 +8,7 @@ import { LedgerModule } from './ledger/ledger.module';
 import { HealthModule } from './health/health.module';
 import { VendorsModule } from './vendors/vendors.module';
 import { VendorOnboardingModule } from './vendor-onboarding/vendor-onboarding.module';
+import { PaypalModule } from './paypal/paypal.module';
 
 export function getCorsOptions() {
   return {
@@ -16,6 +17,6 @@ export function getCorsOptions() {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule, SignupModule],
+  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule, SignupModule, PaypalModule],
 })
 export class AppModule {}
