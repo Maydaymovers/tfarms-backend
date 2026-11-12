@@ -1,15 +1,18 @@
 import { createHash } from 'crypto';
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Payout, PayoutStatus, Prisma, Rail } from '@prisma/client';
+import { LedgerEntryType, Payout, PayoutStatus, Prisma, Rail, VendorStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { HotelScope } from '../auth/hotel-context';
 import { canTransition } from './payout-status';
+import { PaypalRejectedError, PaypalService } from '../paypal/paypal.service';
 
 export type { Payout };
 
@@ -31,7 +34,10 @@ function parseEnumValue<T extends string>(
 
 @Injectable()
 export class PayoutsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paypal: PaypalService,
+  ) {}
 
   async findAll(scope: HotelScope = {}): Promise<Payout[]> {
     return this.prisma.payout.findMany({ where: { ...scope } });
@@ -162,6 +168,104 @@ export class PayoutsService {
         if (winner) return winner;
       }
       throw err;
+    }
+  }
+
+  /**
+   * Sends a PENDING PayPal-rail payout to the vendor's paypalEmail. The payout is
+   * moved to PROCESSING first (compare-and-set), so a double click cannot send
+   * twice. If PayPal rejects the request nothing was sent and the payout becomes
+   * FAILED. If the outcome is unknown (timeout, 5xx) it stays PROCESSING for
+   * review: retrying is safe because PayPal dedupes on the payout id.
+   * Completion arrives later through the PayPal webhook.
+   */
+  async sendViaPaypal(id: string, changedBy: string, scope: HotelScope = {}): Promise<Payout> {
+    const payout = await this.findById(id, scope);
+    if (payout.rail !== Rail.PAYPAL) {
+      throw new BadRequestException('Only payouts on the PAYPAL rail can be sent through PayPal');
+    }
+    if (payout.currency !== 'USD') {
+      throw new BadRequestException('Only USD payouts are supported');
+    }
+    const vendor = await this.prisma.vendor.findUnique({ where: { id: payout.vendorId } });
+    if (!vendor || vendor.status !== VendorStatus.ACTIVE) {
+      throw new UnprocessableEntityException('Vendor must be ACTIVE to receive a payout');
+    }
+    if (!vendor.paypalEmail) {
+      throw new UnprocessableEntityException('Vendor has no PayPal email on file');
+    }
+    if (!this.paypal.isConfigured()) {
+      throw new ServiceUnavailableException('PayPal is not configured');
+    }
+    if (payout.status === PayoutStatus.PROCESSING) {
+      // Retry of an unknown outcome: PayPal dedupes on the payout id.
+    } else {
+      await this.updateStatus(id, PayoutStatus.PROCESSING, changedBy, { reason: 'Sent via PayPal' }, scope);
+    }
+    try {
+      const batchId = await this.paypal.sendPayout({
+        payoutId: id,
+        amount: payout.amount.toFixed(2),
+        currency: payout.currency,
+        receiverEmail: vendor.paypalEmail,
+      });
+      await this.prisma.payout.update({ where: { id }, data: { externalTransactionId: batchId } });
+    } catch (err) {
+      if (err instanceof PaypalRejectedError) {
+        await this.updateStatus(
+          id,
+          PayoutStatus.FAILED,
+          changedBy,
+          { failureReason: err.message, reason: 'PayPal rejected the payout' },
+          scope,
+        );
+        throw new UnprocessableEntityException(`PayPal rejected the payout: ${err.message}`);
+      }
+      throw new BadGatewayException('PayPal outcome unknown; payout left PROCESSING, safe to retry');
+    }
+    return this.findById(id, scope);
+  }
+
+  /**
+   * Applies a settlement outcome reported by the provider webhook. Idempotent:
+   * a repeated event, or one that arrives after the payout already moved on,
+   * changes nothing. Posts the ledger entry for COMPLETED and REVERSED.
+   */
+  async applyProviderOutcome(
+    id: string,
+    outcome: 'COMPLETED' | 'FAILED' | 'REVERSED',
+    reason: string,
+  ): Promise<void> {
+    const payout = await this.prisma.payout.findUnique({ where: { id } });
+    if (!payout || payout.rail !== Rail.PAYPAL) return;
+    const target = PayoutStatus[outcome];
+    if (payout.status !== target) {
+      if (!canTransition(payout.status, target)) return;
+      await this.updateStatus(id, target, 'provider:paypal', {
+        reason,
+        failureReason: outcome === 'FAILED' ? reason : undefined,
+      });
+    }
+    const type =
+      outcome === 'COMPLETED'
+        ? LedgerEntryType.PAYOUT_DEBIT
+        : outcome === 'REVERSED'
+          ? LedgerEntryType.PAYOUT_REVERSAL
+          : null;
+    if (type) {
+      const exists = await this.prisma.ledgerEntry.findFirst({ where: { payoutId: id, type } });
+      if (!exists) {
+        await this.prisma.ledgerEntry.create({
+          data: {
+            hotelId: payout.hotelId,
+            type,
+            amount: payout.amount,
+            currency: payout.currency,
+            vendorId: payout.vendorId,
+            payoutId: id,
+          },
+        });
+      }
     }
   }
 

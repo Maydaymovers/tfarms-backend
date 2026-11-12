@@ -6,6 +6,7 @@ import { HotelContext, scopeOf } from '../auth/hotel-context';
 import { PayoutsService } from '../payouts/payouts.service';
 import { UpdateVendorStatusDto } from './dto/update-vendor-status.dto';
 import { AssignHotelDto } from './dto/assign-hotel.dto';
+import { SetPaypalEmailDto } from './dto/set-paypal-email.dto';
 import { OnboardVendorDto } from './dto/onboard-vendor.dto';
 import { VendorsService } from './vendors.service';
 
@@ -37,6 +38,13 @@ export class VendorsController {
   @ServiceOnly()
   async assignHotel(@Param('id') id: string, @Body() body: AssignHotelDto) {
     return this.vendorsService.assignToHotel(id, body.hotelId);
+  }
+
+  /** Platform admin only: payouts go to this address, so hotels cannot change it. */
+  @Put(':id/paypal-email')
+  @ServiceOnly()
+  async setPaypalEmail(@Param('id') id: string, @Body() body: SetPaypalEmailDto) {
+    return this.vendorsService.setPaypalEmail(id, body.paypalEmail);
   }
 
   @Post('onboard')

@@ -65,6 +65,13 @@ export class VendorsService {
     return { count: await this.prisma.vendor.count({ where: { ...scope } }) };
   }
 
+  async setPaypalEmail(vendorId: string, paypalEmail: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
+    if (!vendor) throw new NotFoundException(`Vendor ${vendorId} not found`);
+    await this.prisma.vendor.update({ where: { id: vendorId }, data: { paypalEmail: paypalEmail.trim().toLowerCase() } });
+    return { vendorId, paypalEmail: paypalEmail.trim().toLowerCase() };
+  }
+
   /**
    * Assigns an existing vendor, and its still-unassigned payouts and ledger
    * entries, to a hotel. Service requests only.

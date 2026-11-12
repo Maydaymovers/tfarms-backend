@@ -77,6 +77,8 @@ model Vendor {
   hotel        Hotel?   @relation(fields: [hotelId], references: [id])
   name         String
   contactEmail String?
+  // Where PayPal payouts are sent. Set by platform admin only.
+  paypalEmail  String?
   status       VendorStatus @default(PENDING)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
