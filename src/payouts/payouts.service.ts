@@ -12,6 +12,7 @@ import { LedgerEntryType, Payout, PayoutStatus, Prisma, Rail, VendorStatus } fro
 import { PrismaService } from '../prisma/prisma.service';
 import { HotelScope } from '../auth/hotel-context';
 import { canTransition } from './payout-status';
+import { QuickbooksService } from '../quickbooks/quickbooks.service';
 import { PaypalRejectedError, PaypalService } from '../paypal/paypal.service';
 
 export type { Payout };
@@ -37,6 +38,7 @@ export class PayoutsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly paypal: PaypalService,
+    private readonly quickbooks: QuickbooksService,
   ) {}
 
   async findAll(scope: HotelScope = {}): Promise<Payout[]> {
@@ -266,6 +268,10 @@ export class PayoutsService {
           },
         });
       }
+    }
+    if (outcome === 'COMPLETED') {
+      // Best effort and idempotent: a webhook retry tries again if QuickBooks was down.
+      await this.quickbooks.recordPayout(id);
     }
   }
 
