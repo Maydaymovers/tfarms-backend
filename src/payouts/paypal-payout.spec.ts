@@ -26,7 +26,8 @@ function setup(payoutOver: Record<string, unknown> = {}, vendorOver: Record<stri
   };
   prisma.$transaction = async (fn: any) => fn(prisma);
   const paypal: any = { isConfigured: () => true, sendPayout: jest.fn(async () => 'BATCH1') };
-  return { svc: new PayoutsService(prisma, paypal), payout, paypal, ledger };
+  const quickbooks: any = { recordPayout: jest.fn(async () => null) };
+  return { svc: new PayoutsService(prisma, paypal, quickbooks), payout, paypal, ledger, quickbooks };
 }
 
 describe('PayPal payouts', () => {
@@ -61,12 +62,13 @@ describe('PayPal payouts', () => {
   });
 
   it('webhook completion posts one ledger debit, even when repeated', async () => {
-    const { svc, payout, ledger } = setup({ status: PayoutStatus.PROCESSING });
+    const { svc, payout, ledger, quickbooks } = setup({ status: PayoutStatus.PROCESSING });
     await svc.applyProviderOutcome('p1', 'COMPLETED', 'ok');
     await svc.applyProviderOutcome('p1', 'COMPLETED', 'ok');
     expect(payout.status).toBe(PayoutStatus.COMPLETED);
     expect(ledger).toHaveLength(1);
     expect(ledger[0].type).toBe('PAYOUT_DEBIT');
+    expect(quickbooks.recordPayout).toHaveBeenCalledWith('p1');
   });
 
   it('webhook return reverses a completed payout; late failure is ignored', async () => {

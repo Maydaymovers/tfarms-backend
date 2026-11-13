@@ -79,6 +79,8 @@ model Vendor {
   contactEmail String?
   // Where PayPal payouts are sent. Set by platform admin only.
   paypalEmail  String?
+  // QuickBooks vendor Id. Set by platform admin only.
+  qboVendorId  String?
   status       VendorStatus @default(PENDING)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -139,6 +141,8 @@ model Payout {
   rail                  Rail
   status                PayoutStatus  @default(PENDING)
   externalTransactionId String?
+  // QuickBooks BillPayment Id, set once the payout is recorded in QuickBooks.
+  qboBillPaymentId      String?
   failureReason        String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
@@ -182,4 +186,14 @@ model LedgerEntry {
   @@index([vendorId])
   @@index([type])
   @@index([payoutId])
+}
+
+// Single row (id = 'default'): the OAuth tokens for the connected QuickBooks company.
+model QuickbooksAuth {
+  id           String   @id @default("default")
+  realmId      String
+  refreshToken String
+  accessToken  String?
+  expiresAt    DateTime?
+  updatedAt    DateTime @updatedAt
 }
