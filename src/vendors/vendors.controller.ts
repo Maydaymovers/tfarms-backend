@@ -7,6 +7,7 @@ import { PayoutsService } from '../payouts/payouts.service';
 import { UpdateVendorStatusDto } from './dto/update-vendor-status.dto';
 import { AssignHotelDto } from './dto/assign-hotel.dto';
 import { SetPaypalEmailDto } from './dto/set-paypal-email.dto';
+import { SetQboVendorIdDto } from './dto/set-qbo-vendor-id.dto';
 import { OnboardVendorDto } from './dto/onboard-vendor.dto';
 import { VendorsService } from './vendors.service';
 
@@ -45,6 +46,13 @@ export class VendorsController {
   @ServiceOnly()
   async setPaypalEmail(@Param('id') id: string, @Body() body: SetPaypalEmailDto) {
     return this.vendorsService.setPaypalEmail(id, body.paypalEmail);
+  }
+
+  /** Platform admin only: the QuickBooks vendor whose Bills this vendor's payouts settle. */
+  @Put(':id/qbo-vendor-id')
+  @ServiceOnly()
+  async setQboVendorId(@Param('id') id: string, @Body() body: SetQboVendorIdDto) {
+    return this.vendorsService.setQboVendorId(id, body.qboVendorId);
   }
 
   @Post('onboard')

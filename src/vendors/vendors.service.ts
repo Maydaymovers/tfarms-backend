@@ -65,6 +65,13 @@ export class VendorsService {
     return { count: await this.prisma.vendor.count({ where: { ...scope } }) };
   }
 
+  async setQboVendorId(vendorId: string, qboVendorId: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
+    if (!vendor) throw new NotFoundException(`Vendor ${vendorId} not found`);
+    await this.prisma.vendor.update({ where: { id: vendorId }, data: { qboVendorId } });
+    return { vendorId, qboVendorId };
+  }
+
   async setPaypalEmail(vendorId: string, paypalEmail: string) {
     const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
     if (!vendor) throw new NotFoundException(`Vendor ${vendorId} not found`);
