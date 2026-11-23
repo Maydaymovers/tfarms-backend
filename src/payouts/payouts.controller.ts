@@ -74,6 +74,13 @@ export class PayoutsController {
     return this.payoutsService.sendPendingViaPaypal(changedBy, scopeOf(hotel));
   }
 
+  /** Asks PayPal for the status of PROCESSING payouts and applies the result (backstop for missed webhooks). */
+  @Post('reconcile')
+  @Roles(HotelRole.OWNER, HotelRole.MANAGER)
+  async reconcile(@CurrentHotel() hotel: HotelContext | null) {
+    return this.payoutsService.reconcilePaypal(scopeOf(hotel));
+  }
+
   /** Sends a PENDING PayPal-rail payout through PayPal. Completion arrives by webhook. */
   @Post(':id/send')
   @Roles(HotelRole.OWNER, HotelRole.MANAGER)

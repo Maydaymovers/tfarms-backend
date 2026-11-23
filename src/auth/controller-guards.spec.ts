@@ -22,7 +22,7 @@ function routeMethods(controller: Ctor): string[] {
 }
 
 describe.each([
-  ['PayoutsController', PayoutsController, 10],
+  ['PayoutsController', PayoutsController, 12],
   ['LedgerController', LedgerController, 1],
   ['VendorsController', VendorsController, 12],
 ])('%s', (_name, controller, expected) => {
