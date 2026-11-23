@@ -10,6 +10,7 @@ import { VendorsModule } from './vendors/vendors.module';
 import { VendorOnboardingModule } from './vendor-onboarding/vendor-onboarding.module';
 import { PaypalModule } from './paypal/paypal.module';
 import { QuickbooksModule } from './quickbooks/quickbooks.module';
+import { AdminModule } from './admin/admin.module';
 
 export function getCorsOptions() {
   return {
@@ -18,6 +19,6 @@ export function getCorsOptions() {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule, SignupModule, PaypalModule, QuickbooksModule],
+  imports: [PrismaModule, AuthModule, PayoutsModule, LedgerModule, HealthModule, VendorsModule, VendorOnboardingModule, HotelsModule, SignupModule, PaypalModule, QuickbooksModule, AdminModule],
 })
 export class AppModule {}
