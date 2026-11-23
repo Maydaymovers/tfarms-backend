@@ -66,6 +66,14 @@ export class PayoutsController {
     );
   }
 
+  /** Sends every PENDING PayPal-rail payout in the caller's scope. Returns one result per payout. */
+  @Post('send-pending')
+  @Roles(HotelRole.OWNER, HotelRole.MANAGER)
+  async sendPending(@CurrentHotel() hotel: HotelContext | null) {
+    const changedBy = hotel ? `member:${hotel.memberId}` : 'platform_admin';
+    return this.payoutsService.sendPendingViaPaypal(changedBy, scopeOf(hotel));
+  }
+
   /** Sends a PENDING PayPal-rail payout through PayPal. Completion arrives by webhook. */
   @Post(':id/send')
   @Roles(HotelRole.OWNER, HotelRole.MANAGER)
