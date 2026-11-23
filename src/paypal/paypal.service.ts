@@ -80,6 +80,24 @@ export class PaypalService {
     throw new Error(`PayPal error ${res.status}`);
   }
 
+  /**
+   * Reads a payout batch (GET /v1/payments/payouts/{id}) and returns each item's
+   * sender_item_id (our payout id) with PayPal's transaction_status.
+   */
+  async getBatchItems(batchId: string): Promise<{ payoutId: string; status: string; reason?: string }[]> {
+    const token = await this.accessToken();
+    const res = await fetch(`${this.baseUrl}/v1/payments/payouts/${encodeURIComponent(batchId)}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`PayPal batch lookup failed: ${res.status}`);
+    const body = (await res.json()) as {
+      items?: { transaction_status?: string; payout_item?: { sender_item_id?: string }; errors?: { message?: string } }[];
+    };
+    return (body.items ?? [])
+      .filter((i) => i.payout_item?.sender_item_id && i.transaction_status)
+      .map((i) => ({ payoutId: i.payout_item!.sender_item_id!, status: i.transaction_status!, reason: i.errors?.message }));
+  }
+
   /** Verifies a webhook with PayPal's verify-webhook-signature API. Fails closed. */
   async verifyWebhook(headers: Record<string, string | string[] | undefined>, event: unknown): Promise<boolean> {
     const webhookId = process.env.PAYPAL_WEBHOOK_ID;

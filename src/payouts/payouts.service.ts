@@ -253,6 +253,32 @@ export class PayoutsService {
   }
 
   /**
+   * Polls PayPal for PROCESSING PayPal payouts that have a batch id and applies
+   * the result, so a missed webhook cannot leave a payout stuck. UNCLAIMED, HELD,
+   * PENDING and ONHOLD items are left alone.
+   */
+  async reconcilePaypal(scope: HotelScope = {}): Promise<{ id: string; status: string; applied: boolean }[]> {
+    const processing = await this.prisma.payout.findMany({
+      where: { status: PayoutStatus.PROCESSING, rail: Rail.PAYPAL, externalTransactionId: { not: null }, ...scope },
+      orderBy: { createdAt: 'asc' },
+    });
+    const results: { id: string; status: string; applied: boolean }[] = [];
+    for (const p of processing) {
+      try {
+        const items = await this.paypal.getBatchItems(p.externalTransactionId as string);
+        const item = items.find((i) => i.payoutId === p.id);
+        if (!item) continue;
+        const outcome = PAYPAL_ITEM_OUTCOME[item.status];
+        if (outcome) await this.applyProviderOutcome(p.id, outcome, item.reason ?? `PayPal ${item.status}`);
+        results.push({ id: p.id, status: item.status, applied: !!outcome });
+      } catch (err) {
+        results.push({ id: p.id, status: err instanceof Error ? err.message : 'error', applied: false });
+      }
+    }
+    return results;
+  }
+
+  /**
    * Applies a settlement outcome reported by the provider webhook. Idempotent:
    * a repeated event, or one that arrives after the payout already moved on,
    * changes nothing. Posts the ledger entry for COMPLETED and REVERSED.
@@ -359,3 +385,13 @@ export class PayoutsService {
     });
   }
 }
+
+const PAYPAL_ITEM_OUTCOME: Record<string, 'COMPLETED' | 'FAILED' | 'REVERSED'> = {
+  SUCCESS: 'COMPLETED',
+  FAILED: 'FAILED',
+  DENIED: 'FAILED',
+  BLOCKED: 'FAILED',
+  CANCELED: 'FAILED',
+  RETURNED: 'REVERSED',
+  REFUNDED: 'REVERSED',
+};
