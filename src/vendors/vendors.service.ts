@@ -12,6 +12,9 @@ export interface VendorSummary {
   onboarded: boolean;
   status: VendorStatus | null;
   createdAt: Date | null;
+  /** Booleans only: the address and id themselves are not listed. */
+  hasPaypalEmail?: boolean;
+  hasQboVendorId?: boolean;
 }
 
 @Injectable()
@@ -34,6 +37,8 @@ export class VendorsService {
       onboarded: true,
       status: vendor.status,
       createdAt: vendor.createdAt,
+      hasPaypalEmail: !!vendor.paypalEmail,
+      hasQboVendorId: !!vendor.qboVendorId,
     }));
     const known = new Set(vendors.map((vendor) => vendor.id));
     for (const { vendorId } of payoutVendors) {
