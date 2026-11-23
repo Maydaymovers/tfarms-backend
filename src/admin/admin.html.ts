@@ -53,7 +53,7 @@ async function load(keep) {
     for (const v of vendors) {
       if (!v.name) continue;
       const tr = document.createElement('tr');
-      cell(tr, v.name); cell(tr, v.status); cell(tr, v.paypalEmail || 'MISSING'); cell(tr, v.qboVendorId || 'MISSING');
+      cell(tr, v.name); cell(tr, v.status); cell(tr, v.hasPaypalEmail ? 'set' : 'MISSING'); cell(tr, v.hasQboVendorId ? 'set' : 'MISSING');
       const td = document.createElement('td');
       const be = document.createElement('button'); be.textContent = 'Set PayPal email'; be.onclick = () => setField(v, 'paypal-email', 'paypalEmail', 'PayPal email for ' + v.name);
       const bq = document.createElement('button'); bq.textContent = 'Set QuickBooks ID'; bq.onclick = () => setField(v, 'qbo-vendor-id', 'qboVendorId', 'QuickBooks vendor ID for ' + v.name);
@@ -69,10 +69,10 @@ async function load(keep) {
       ab.appendChild(ar);
       if (p.status === 'PENDING' && p.rail === 'PAYPAL') {
         const tr = document.createElement('tr');
-        cell(tr, name); cell(tr, v.paypalEmail || 'MISSING'); cell(tr, v.qboVendorId || 'MISSING');
+        cell(tr, name); cell(tr, v.hasPaypalEmail ? 'set' : 'MISSING'); cell(tr, v.hasQboVendorId ? 'set' : 'MISSING');
         cell(tr, p.currency + ' ' + Number(p.amount).toFixed(2));
         const td = document.createElement('td'); const b = document.createElement('button'); b.textContent = 'Send';
-        const ready = v.status === 'ACTIVE' && v.paypalEmail;
+        const ready = v.status === 'ACTIVE' && v.hasPaypalEmail;
         b.disabled = !ready; if (!ready) b.title = 'Vendor must be ACTIVE with a PayPal email';
         b.onclick = () => send(p, v, name);
         td.appendChild(b); tr.appendChild(td); pb.appendChild(tr);
@@ -103,7 +103,7 @@ $('create').onclick = async () => {
 };
 async function send(p, v, name) {
   const amt = p.currency + ' ' + Number(p.amount).toFixed(2);
-  if (!confirm('Send ' + amt + ' to ' + name + ' at ' + v.paypalEmail + ' through PayPal? This moves real money.')) return;
+  if (!confirm('Send ' + amt + ' to ' + name + ' through PayPal to the PayPal email saved for this vendor? This moves real money.')) return;
   say('Sending...');
   try { const r = await api('POST', '/payouts/' + p.id + '/send'); say('Sent. Status: ' + r.status, 'ok'); }
   catch (e) { say(e.message, 'warn'); }
