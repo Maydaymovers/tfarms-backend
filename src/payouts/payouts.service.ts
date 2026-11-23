@@ -229,6 +229,30 @@ export class PayoutsService {
   }
 
   /**
+   * Sends every PENDING PayPal-rail payout in scope, one at a time. A failure on
+   * one payout is recorded in the result and does not stop the rest.
+   */
+  async sendPendingViaPaypal(
+    changedBy: string,
+    scope: HotelScope = {},
+  ): Promise<{ id: string; ok: boolean; error?: string }[]> {
+    const pending = await this.prisma.payout.findMany({
+      where: { status: PayoutStatus.PENDING, rail: Rail.PAYPAL, ...scope },
+      orderBy: { createdAt: 'asc' },
+    });
+    const results: { id: string; ok: boolean; error?: string }[] = [];
+    for (const p of pending) {
+      try {
+        await this.sendViaPaypal(p.id, changedBy, scope);
+        results.push({ id: p.id, ok: true });
+      } catch (err) {
+        results.push({ id: p.id, ok: false, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return results;
+  }
+
+  /**
    * Applies a settlement outcome reported by the provider webhook. Idempotent:
    * a repeated event, or one that arrives after the payout already moved on,
    * changes nothing. Posts the ledger entry for COMPLETED and REVERSED.
