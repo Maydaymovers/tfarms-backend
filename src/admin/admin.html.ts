@@ -42,9 +42,9 @@ async function api(method, path, body) {
 function cell(tr, text) { const td = document.createElement('td'); td.textContent = text == null ? '' : String(text); tr.appendChild(td); return td; }
 function clear(id) { $(id).querySelector('tbody').replaceChildren(); return $(id).querySelector('tbody'); }
 
-async function load() {
+async function load(keep) {
   sessionStorage.setItem('k', keyEl.value);
-  say('Loading...');
+  if (!keep) say('Loading...');
   try {
     const [payouts, vendors] = await Promise.all([api('GET', '/payouts'), api('GET', '/vendors')]);
     const vmap = {}; for (const v of vendors) vmap[v.id] = v;
@@ -78,7 +78,7 @@ async function load() {
         td.appendChild(b); tr.appendChild(td); pb.appendChild(tr);
       }
     }
-    say(pb.children.length + ' pending, ' + payouts.length + ' total.', 'ok');
+    if (!keep) say(pb.children.length + ' pending, ' + payouts.length + ' total.', 'ok');
   } catch (e) { say(e.message, 'warn'); }
 }
 async function setField(v, path, field, label) {
@@ -87,7 +87,7 @@ async function setField(v, path, field, label) {
   say('Saving...');
   try { await api('PUT', '/vendors/' + v.id + '/' + path, { [field]: val.trim() }); say('Saved.', 'ok'); }
   catch (e) { say(e.message, 'warn'); }
-  load();
+  load(true);
 }
 $('create').onclick = async () => {
   const id = $('nv').value, amount = $('na').value.trim();
@@ -99,7 +99,7 @@ $('create').onclick = async () => {
     if (!res.ok) throw new Error([].concat(d.message || 'HTTP ' + res.status).join(', '));
     $('na').value = ''; say('Created. Find it under Pending payouts and press Send.', 'ok');
   } catch (e) { say(e.message, 'warn'); }
-  load();
+  load(true);
 };
 async function send(p, v, name) {
   const amt = p.currency + ' ' + Number(p.amount).toFixed(2);
@@ -107,14 +107,14 @@ async function send(p, v, name) {
   say('Sending...');
   try { const r = await api('POST', '/payouts/' + p.id + '/send'); say('Sent. Status: ' + r.status, 'ok'); }
   catch (e) { say(e.message, 'warn'); }
-  load();
+  load(true);
 }
-$('save').onclick = load;
+$('save').onclick = () => load();
 $('reconcile').onclick = async () => {
   say('Asking PayPal...');
   try { const r = await api('POST', '/payouts/reconcile'); say(r.length ? r.map((x) => x.id.slice(0, 8) + ': ' + x.status).join('; ') : 'Nothing to check.', 'ok'); }
   catch (e) { say(e.message, 'warn'); }
-  load();
+  load(true);
 };
 if (keyEl.value) load();
 </script></body></html>
