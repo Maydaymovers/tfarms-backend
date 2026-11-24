@@ -66,6 +66,11 @@ async function load(keep) {
       const ar = document.createElement('tr');
       cell(ar, new Date(p.createdAt).toLocaleString()); cell(ar, name); cell(ar, p.currency + ' ' + Number(p.amount).toFixed(2));
       cell(ar, p.rail); cell(ar, p.status); cell(ar, p.externalTransactionId || ''); cell(ar, p.failureReason || '');
+      if (p.status === 'PROCESSING' && p.rail === 'PAYPAL' && !p.externalTransactionId) {
+        const td = document.createElement('td'); const rb = document.createElement('button'); rb.textContent = 'Retry send';
+        rb.title = 'PayPal gave no answer last time. Safe to retry: PayPal ignores a duplicate.';
+        rb.onclick = () => send(p, v, name); td.appendChild(rb); ar.appendChild(td);
+      }
       ab.appendChild(ar);
       if (p.status === 'PENDING' && p.rail === 'PAYPAL') {
         const tr = document.createElement('tr');

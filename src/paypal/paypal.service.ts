@@ -32,7 +32,12 @@ export class PaypalService {
       headers: { authorization: `Basic ${basic}`, 'content-type': 'application/x-www-form-urlencoded' },
       body: 'grant_type=client_credentials',
     });
-    if (!res.ok) throw new ServiceUnavailableException('PayPal authentication failed');
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string; error_description?: string };
+      throw new ServiceUnavailableException(
+        `PayPal authentication failed (${res.status} ${err.error ?? ''} ${err.error_description ?? ''} on ${process.env.PAYPAL_ENV === 'live' ? 'live' : 'sandbox'}) - check PAYPAL_ENV matches the app's credentials`.replace(/\s+/g, ' '),
+      );
+    }
     const json = (await res.json()) as { access_token: string; expires_in: number };
     this.token = { value: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
     return json.access_token;
