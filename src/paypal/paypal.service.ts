@@ -17,8 +17,17 @@ export class PaypalService {
     return process.env.PAYPAL_ENV === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
   }
 
+  /** Trimmed: a stray space or newline pasted into the variable makes PayPal answer invalid_client. */
+  private get clientId(): string {
+    return (process.env.PAYPAL_CLIENT_ID ?? '').trim();
+  }
+
+  private get clientSecret(): string {
+    return (process.env.PAYPAL_CLIENT_SECRET ?? '').trim();
+  }
+
   isConfigured(): boolean {
-    return !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+    return !!(this.clientId && this.clientSecret);
   }
 
   /** Non-secret facts about the configured pair, to spot swapped or padded values. */
@@ -33,7 +42,7 @@ export class PaypalService {
       throw new ServiceUnavailableException('PayPal is not configured');
     }
     if (this.token && this.token.expiresAt > Date.now() + 60_000) return this.token.value;
-    const basic = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+    const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
     const res = await fetch(`${this.baseUrl}/v1/oauth2/token`, {
       method: 'POST',
       headers: { authorization: `Basic ${basic}`, 'content-type': 'application/x-www-form-urlencoded' },
@@ -112,7 +121,7 @@ export class PaypalService {
 
   /** Verifies a webhook with PayPal's verify-webhook-signature API. Fails closed. */
   async verifyWebhook(headers: Record<string, string | string[] | undefined>, event: unknown): Promise<boolean> {
-    const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+    const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim();
     if (!webhookId || !this.isConfigured()) return false;
     const h = (name: string) => {
       const v = headers[name];
