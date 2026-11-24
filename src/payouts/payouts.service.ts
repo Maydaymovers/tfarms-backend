@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnprocessableEntityException,
@@ -35,6 +36,8 @@ function parseEnumValue<T extends string>(
 
 @Injectable()
 export class PayoutsService {
+  private readonly log = new Logger(PayoutsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly paypal: PaypalService,
@@ -223,7 +226,9 @@ export class PayoutsService {
         );
         throw new UnprocessableEntityException(`PayPal rejected the payout: ${err.message}`);
       }
-      throw new BadGatewayException('PayPal outcome unknown; payout left PROCESSING, safe to retry');
+      const cause = err instanceof Error ? err.message : String(err);
+      this.log.error(`Payout ${id}: PayPal send failed, outcome unknown: ${cause}`);
+      throw new BadGatewayException(`PayPal outcome unknown (${cause}); payout left PROCESSING, safe to retry`);
     }
     return this.findById(id, scope);
   }
