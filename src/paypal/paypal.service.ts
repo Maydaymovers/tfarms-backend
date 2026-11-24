@@ -21,6 +21,13 @@ export class PaypalService {
     return !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
   }
 
+  /** Non-secret facts about the configured pair, to spot swapped or padded values. */
+  private credentialShape(): string {
+    const f = (v: string | undefined) =>
+      v === undefined ? 'unset' : `${v.length} chars, starts ${v.slice(0, 1) || '-'}, ${v !== v.trim() ? 'HAS leading/trailing whitespace' : 'no padding'}, ${/\s/.test(v.trim()) ? 'HAS inner whitespace' : 'no inner whitespace'}`;
+    return `client id: ${f(process.env.PAYPAL_CLIENT_ID)}; secret: ${f(process.env.PAYPAL_CLIENT_SECRET)}`;
+  }
+
   private async accessToken(): Promise<string> {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('PayPal is not configured');
@@ -35,7 +42,7 @@ export class PaypalService {
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string; error_description?: string };
       throw new ServiceUnavailableException(
-        `PayPal authentication failed (${res.status} ${err.error ?? ''} ${err.error_description ?? ''} on ${process.env.PAYPAL_ENV === 'live' ? 'live' : 'sandbox'}) - check PAYPAL_ENV matches the app's credentials`.replace(/\s+/g, ' '),
+        `PayPal authentication failed (${res.status} ${err.error ?? ''} ${err.error_description ?? ''} on ${process.env.PAYPAL_ENV === 'live' ? 'live' : 'sandbox'}) - ${this.credentialShape()}`.replace(/\s+/g, ' '),
       );
     }
     const json = (await res.json()) as { access_token: string; expires_in: number };
